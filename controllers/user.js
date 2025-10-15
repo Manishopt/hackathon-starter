@@ -99,6 +99,13 @@ Thank you!\n`,
       req.flash('errors', info);
       return res.redirect('/login');
     }
+    
+    // Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      req.session.pendingUser = user._id;
+      return res.redirect('/account/2fa/verify');
+    }
+    
     req.logIn(user, (err) => {
       if (err) {
         return next(err);

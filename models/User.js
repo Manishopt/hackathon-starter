@@ -34,6 +34,20 @@ const userSchema = new mongoose.Schema(
 
     tokens: Array,
 
+    // 2FA fields
+    twoFactorSecret: String,
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorBackupCodes: [String],
+
+    // WebAuthn fields
+    webAuthnCredentials: [{
+      id: String,
+      publicKey: String,
+      counter: Number,
+      transports: [String],
+      createdAt: { type: Date, default: Date.now }
+    }],
+
     profile: {
       name: String,
       gender: String,

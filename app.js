@@ -17,12 +17,12 @@ const rateLimit = require('express-rate-limit');
 /**
  * Load environment variables from .env file, where API keys and passwords are configured.
  */
-dotenv.config({ path: '.env.example' });
+dotenv.config({ path: '.env' });
 
 /**
  * Set config values
  */
-const secureTransfer = process.env.BASE_URL.startsWith('https');
+const secureTransfer = process.env.BASE_URL ? process.env.BASE_URL.startsWith('https') : false;
 
 /**
  * Rate limiting configuration
@@ -65,6 +65,7 @@ else numberOfProxies = 0;
  */
 const homeController = require('./controllers/home');
 const userController = require('./controllers/user');
+const authController = require('./controllers/auth');
 const apiController = require('./controllers/api');
 const aiController = require('./controllers/ai');
 const contactController = require('./controllers/contact');
@@ -201,6 +202,20 @@ app.post('/account/password', passportConfig.isAuthenticated, userController.pos
 app.post('/account/delete', passportConfig.isAuthenticated, userController.postDeleteAccount);
 app.post('/account/logout-everywhere', passportConfig.isAuthenticated, userController.postLogoutEverywhere);
 app.get('/account/unlink/:provider', passportConfig.isAuthenticated, userController.getOauthUnlink);
+
+/**
+ * 2FA and WebAuthn routes.
+ */
+app.get('/account/2fa/setup', passportConfig.isAuthenticated, authController.get2FASetup);
+app.post('/account/2fa/setup', passportConfig.isAuthenticated, authController.post2FASetup);
+app.post('/account/2fa/disable', passportConfig.isAuthenticated, authController.post2FADisable);
+app.get('/account/2fa/verify', authController.get2FAVerify);
+app.post('/account/2fa/verify', authController.post2FAVerify);
+app.get('/account/webauthn/register', passportConfig.isAuthenticated, authController.getWebAuthnRegister);
+app.post('/account/webauthn/register', passportConfig.isAuthenticated, authController.postWebAuthnRegister);
+app.get('/account/webauthn/authenticate', authController.getWebAuthnAuthenticate);
+app.post('/account/webauthn/authenticate', authController.postWebAuthnAuthenticate);
+app.post('/account/webauthn/remove', passportConfig.isAuthenticated, authController.postWebAuthnRemove);
 
 /**
  * API examples routes.
@@ -348,22 +363,26 @@ if (process.env.NODE_ENV === 'development') {
  */
 app.listen(app.get('port'), () => {
   const { BASE_URL } = process.env;
-  const colonIndex = BASE_URL.lastIndexOf(':');
-  const port = parseInt(BASE_URL.slice(colonIndex + 1), 10);
+  
+  if (BASE_URL) {
+    const colonIndex = BASE_URL.lastIndexOf(':');
+    const port = parseInt(BASE_URL.slice(colonIndex + 1), 10);
 
-  if (!BASE_URL.startsWith('http://localhost')) {
-    console.log(
-      `The BASE_URL environment variable is set to ${BASE_URL}.
+    if (!BASE_URL.startsWith('http://localhost')) {
+      console.log(
+        `The BASE_URL environment variable is set to ${BASE_URL}.
 If you open the app directly at http://localhost:${app.get('port')} instead of via your HTTPS-terminating endpoint (e.g., ngrok, Cloudflare, or similar), CSRF checks may fail and OAuth sign-in will be rejected due to a redirect mismatch.
 To avoid this, set BASE_URL to the HTTPS endpoint and always access the app through it in your browser.
 `,
-    );
-  } else if (app.get('port') !== port) {
-    console.warn(`WARNING: The BASE_URL environment variable and the App have a port mismatch. If you plan to view the app in your browser using the localhost address, you may need to adjust one of the ports to make them match. BASE_URL: ${BASE_URL}\n`);
+      );
+    } else if (app.get('port') !== port) {
+      console.warn(`WARNING: The BASE_URL environment variable and the App have a port mismatch. If you plan to view the app in your browser using the localhost address, you may need to adjust one of the ports to make them match. BASE_URL: ${BASE_URL}\n`);
+    }
   }
 
   console.log(`App is running on http://localhost:${app.get('port')} in ${app.get('env')} mode.`);
   console.log('Press CTRL-C to stop.');
+  console.log('2FA and WebAuthn features are now available!');
 });
 
 module.exports = app;

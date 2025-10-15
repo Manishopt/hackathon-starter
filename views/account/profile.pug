@@ -87,6 +87,63 @@ block content
           | Logout everywhere
 
   .pb-2.mt-2.mb-4.border-bottom
+    h3 Two-Factor Authentication
+
+  .form-group
+    .offset-sm-3.col-md-7.pl-2
+      if user.twoFactorEnabled
+        .alert.alert-success
+          i.fas.fa-shield-alt.me-2
+          | Two-factor authentication is enabled
+        form(action='/account/2fa/disable', method='POST', onsubmit='return confirm(\'Are you sure you want to disable 2FA?\');')
+          input(type='hidden', name='_csrf', value=_csrf)
+          .mb-3
+            label.form-label(for='disable2faToken') Enter your authentication code to disable 2FA:
+            input.form-control(type='text' name='token' id='disable2faToken' placeholder='123456 or backup code' maxlength='8' required)
+          button.btn.btn-warning(type='submit')
+            i.fas.fa-times.fa-sm.iconpadding
+            | Disable 2FA
+      else
+        .alert.alert-warning
+          i.fas.fa-exclamation-triangle.me-2
+          | Two-factor authentication is not enabled
+        a.btn.btn-success(href='/account/2fa/setup')
+          i.fas.fa-shield-alt.fa-sm.iconpadding
+          | Enable 2FA
+
+  .pb-2.mt-2.mb-4.border-bottom
+    h3 Biometric Login
+
+  .form-group
+    .offset-sm-3.col-md-7.pl-2
+      if user.webAuthnCredentials && user.webAuthnCredentials.length > 0
+        .alert.alert-success
+          i.fas.fa-fingerprint.me-2
+          | Biometric login is enabled
+        .mb-3
+          h6 Registered Devices:
+          each credential in user.webAuthnCredentials
+            .d-flex.justify-content-between.align-items-center.border.rounded.p-2.mb-2
+              div
+                i.fas.fa-fingerprint.me-2
+                | Device registered on #{new Date(credential.createdAt).toLocaleDateString()}
+              form.d-inline(action='/account/webauthn/remove', method='POST', onsubmit='return confirm(\'Remove this biometric credential?\');')
+                input(type='hidden', name='_csrf', value=_csrf)
+                input(type='hidden', name='credentialId', value=credential.id)
+                button.btn.btn-sm.btn-outline-danger(type='submit')
+                  i.fas.fa-trash.fa-sm
+        button.btn.btn-primary#addBiometric
+          i.fas.fa-plus.fa-sm.iconpadding
+          | Add New Device
+      else
+        .alert.alert-info
+          i.fas.fa-info-circle.me-2
+          | Biometric login is not set up
+        button.btn.btn-success#setupBiometric
+          i.fas.fa-fingerprint.fa-sm.iconpadding
+          | Setup Biometric Login
+
+  .pb-2.mt-2.mb-4.border-bottom
     h3 Delete Account
 
   form(action='/account/delete', method='POST', onsubmit='return confirm(\'Are you sure you want to delete your account?\');')
@@ -156,3 +213,53 @@ block content
         p.mb-1: a.text-danger(href='/account/unlink/x') Unlink your X account
       else
         p.mb-1: a(href='/auth/x') Link your X account
+
+  script(src='https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js')
+  script.
+    const { startRegistration } = SimpleWebAuthnBrowser;
+    
+    // Setup biometric login
+    document.getElementById('setupBiometric')?.addEventListener('click', async function() {
+      await registerBiometric();
+    });
+    
+    // Add new biometric device
+    document.getElementById('addBiometric')?.addEventListener('click', async function() {
+      await registerBiometric();
+    });
+    
+    async function registerBiometric() {
+      try {
+        // Get registration options from server
+        const resp = await fetch('/account/webauthn/register');
+        const options = await resp.json();
+        
+        if (!resp.ok) {
+          throw new Error(options.error || 'Failed to get registration options');
+        }
+        
+        // Start registration
+        const attResp = await startRegistration(options);
+        
+        // Send response to server
+        const verificationResp = await fetch('/account/webauthn/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(attResp),
+        });
+        
+        const verificationJSON = await verificationResp.json();
+        
+        if (verificationJSON.verified) {
+          alert('Biometric login has been set up successfully!');
+          location.reload();
+        } else {
+          throw new Error('Failed to verify registration');
+        }
+      } catch (error) {
+        console.error('Registration failed:', error);
+        alert('Failed to set up biometric login: ' + error.message);
+      }
+    }

@@ -1,0 +1,37 @@
+extends ../layout
+
+block content
+  .pb-2
+    .row
+      .col-sm-8.offset-sm-2
+        h1.display-4 Two-Factor Authentication Setup
+        p.lead Secure your account with two-factor authentication using an authenticator app.
+        
+        .card
+          .card-body
+            h5.card-title Step 1: Install an Authenticator App
+            p.card-text Install an authenticator app on your mobile device such as:
+            ul
+              li Google Authenticator
+              li Microsoft Authenticator
+              li Authy
+              li 1Password
+            
+            h5.card-title.mt-4 Step 2: Scan QR Code
+            p.card-text Scan this QR code with your authenticator app:
+            .text-center.mb-3
+              img(src=qrCode alt="QR Code for 2FA setup" style="max-width: 200px;")
+            
+            .alert.alert-info
+              strong Manual Entry: 
+              | If you can't scan the QR code, enter this secret manually: 
+              code= secret
+            
+            h5.card-title.mt-4 Step 3: Verify Setup
+            form(method='POST' action='/account/2fa/setup')
+              input(type='hidden' name='secret' value=secret)
+              .mb-3
+                label.form-label(for='token') Enter the 6-digit code from your authenticator app:
+                input.form-control(type='text' name='token' id='token' placeholder='123456' maxlength='6' required)
+              button.btn.btn-primary(type='submit') Enable 2FA
+              a.btn.btn-secondary.ms-2(href='/account') Cancel

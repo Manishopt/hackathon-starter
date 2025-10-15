@@ -23,6 +23,9 @@ block content
         button.col-md-2.btn.btn-primary(type='submit')
           i.far.fa-user.fa-sm.iconpadding
           | Login
+        button.btn.btn-outline-primary.ms-2#biometricLogin(type='button')
+          i.fas.fa-fingerprint.fa-sm.iconpadding
+          | Biometric Login
         a.btn.btn-link(href='/forgot') Forgot your password?
     .form-group.row
       .col-md-7.offset-md-3.d-grid.gap-2
@@ -69,5 +72,59 @@ block content
     document.querySelector('form').addEventListener('submit', function (e) {
       if (document.getElementById('loginByEmailLink').checked) {
         document.getElementById('password').value = '';
+      }
+    });
+
+  script(src='https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js')
+  script.
+    const { startAuthentication } = SimpleWebAuthnBrowser;
+    
+    // Biometric login
+    document.getElementById('biometricLogin').addEventListener('click', async function() {
+      const email = document.getElementById('email').value;
+      
+      if (!email) {
+        alert('Please enter your email address first');
+        document.getElementById('email').focus();
+        return;
+      }
+      
+      try {
+        // Get authentication options from server
+        const resp = await fetch(`/account/webauthn/authenticate?email=${encodeURIComponent(email)}`);
+        const options = await resp.json();
+        
+        if (!resp.ok) {
+          throw new Error(options.error || 'Failed to get authentication options');
+        }
+        
+        // Start authentication
+        const authResp = await startAuthentication(options);
+        
+        // Send response to server
+        const verificationResp = await fetch('/account/webauthn/authenticate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(authResp),
+        });
+        
+        const verificationJSON = await verificationResp.json();
+        
+        if (verificationJSON.verified) {
+          if (verificationJSON.requires2FA) {
+            // Redirect to 2FA verification
+            window.location.href = '/account/2fa/verify';
+          } else {
+            // Login successful, redirect to home
+            window.location.href = '/';
+          }
+        } else {
+          throw new Error('Authentication failed');
+        }
+      } catch (error) {
+        console.error('Biometric login failed:', error);
+        alert('Biometric login failed: ' + error.message);
       }
     });

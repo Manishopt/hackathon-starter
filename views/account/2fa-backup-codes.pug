@@ -1,0 +1,42 @@
+extends ../layout
+
+block content
+  .pb-2
+    .row
+      .col-sm-8.offset-sm-2
+        h1.display-4 Two-Factor Authentication Enabled
+        p.lead Your account is now protected with two-factor authentication.
+        
+        .card
+          .card-body
+            h5.card-title Backup Codes
+            .alert.alert-warning
+              strong Important: 
+              | Save these backup codes in a secure location. Each code can only be used once and will allow you to access your account if you lose your authenticator device.
+            
+            .row
+              each code, index in backupCodes
+                .col-md-6.mb-2
+                  code.d-block.p-2.bg-light.border.rounded= code
+            
+            .mt-4
+              button.btn.btn-secondary#copyBackupCodes Copy All Codes
+              a.btn.btn-primary.ms-2(href='/account') Continue to Account
+        
+        script.
+          document.getElementById('copyBackupCodes').addEventListener('click', function() {
+            const codes = !{JSON.stringify(backupCodes)};
+            const codeText = codes.join('\n');
+            navigator.clipboard.writeText(codeText).then(function() {
+              const btn = document.getElementById('copyBackupCodes');
+              const originalText = btn.textContent;
+              btn.textContent = 'Copied!';
+              btn.classList.remove('btn-secondary');
+              btn.classList.add('btn-success');
+              setTimeout(function() {
+                btn.textContent = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-secondary');
+              }, 2000);
+            });
+          });
